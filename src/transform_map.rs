@@ -1,6 +1,6 @@
 #![allow(unused)]
 use raylib::prelude::*;
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 // HACK: make struct fields public to only TransformMap
@@ -285,5 +285,9 @@ impl TransformMap {
 
     pub fn has_child(&self, parent: Uuid, child: Uuid) -> bool {
         self.get(parent).children.contains(&child)
+    }
+
+    pub fn is_parent_of(&self, parent: Uuid, child: Uuid) -> bool {
+        self.get(child).parent == parent
     }
 }
