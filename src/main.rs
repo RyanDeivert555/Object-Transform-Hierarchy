@@ -1,4 +1,3 @@
-mod object_transform;
 //mod tests;
 mod transform_map;
 use raylib::prelude::*;
@@ -13,6 +12,5 @@ fn main() {
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(Color::WHITE);
-
     }
 }
