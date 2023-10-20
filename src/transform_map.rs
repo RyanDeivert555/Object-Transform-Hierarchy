@@ -52,7 +52,7 @@ impl TransformMap {
 
     pub fn new_transform(&mut self, face_y: bool) -> Uuid {
         let transform = ObjectTransform::new(face_y);
-        let id = Uuid::new_v4();
+        let id = transform.parent;
         self.transforms.insert(id, transform);
         id
     }
@@ -72,7 +72,7 @@ impl TransformMap {
         {
             let new_parent_transform = self.get_mut(new_parent);
             new_parent_transform.parent = new_parent;
-            new_parent_transform.children.remove(&old_parent);
+            new_parent_transform.children.insert(old_parent);
         }
         {
             let old_parent_transform = self.get_mut(old_parent);
@@ -81,7 +81,13 @@ impl TransformMap {
         }
     }
 
-    pub fn add_child(&mut self, parent: Uuid, child: Uuid) {
+    pub fn add_child(&mut self, parent: Uuid, face_y: bool) -> Uuid {
+        let child = self.new_transform(face_y);
+        self.add_child_from_id(parent, child);
+        child
+    }
+
+    pub fn add_child_from_id(&mut self, parent: Uuid, child: Uuid) {
         {
             let parent_transform = self.get_mut(parent);
             parent_transform.children.insert(child);
@@ -266,5 +272,18 @@ impl TransformMap {
         camera.position = Vector3::zero().transform_with(self.world_matrix(id));
         camera.target = Vector3::new(0.0, 0.0, 1.0).transform_with(world_matrix);
         camera.up = Vector3::new(0.0, 1.0, 0.0).transform_with(world_matrix) - camera.target;
+    }
+    
+    // for tests only, will be removed later
+    pub fn children_count(&self, id: Uuid) -> usize {
+        self.get(id).children.len()
+    }
+
+    pub fn is_parent(&self, id: Uuid) -> bool {
+        self.get(id).parent == id
+    }
+
+    pub fn has_child(&self, parent: Uuid, child: Uuid) -> bool {
+        self.get(parent).children.contains(&child)
     }
 }
