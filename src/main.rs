@@ -1,4 +1,4 @@
-//mod tests;
+mod tests;
 mod transform_map;
 use raylib::prelude::*;
 
