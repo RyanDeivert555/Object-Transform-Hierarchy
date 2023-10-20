@@ -184,10 +184,12 @@ impl TransformMap {
         orientation_matrix.inverted() * translation_matrix
     }
 
+    // recursion problem
     pub fn update_world_matrix(&mut self, id: Uuid) {
         let local_matrix = self.local_matrix(id);
-        let parent_matrix = if self.is_parent(id) {
-            self.world_matrix(id)
+        let parent_matrix = if !self.is_parent(id) {
+            let parent = self.get(id).parent;
+            self.world_matrix(parent)
         } else {
             Matrix::identity()
         };
@@ -199,12 +201,9 @@ impl TransformMap {
     }
 
     pub fn world_matrix(&mut self, id: Uuid) -> Matrix {
-        let dirty = {
-            let transform = self.get_mut(id);
-            transform.dirty
-        };
-        if !dirty {
-            self.get(id).world_matrix
+        let transform = self.get_mut(id);
+        if !transform.dirty {
+            transform.world_matrix
         } else {
             self.update_world_matrix(id);
             self.get(id).world_matrix
@@ -212,12 +211,9 @@ impl TransformMap {
     }
 
     pub fn gl_world_matrix(&mut self, id: Uuid) -> Matrix {
-        let dirty = {
-            let transform = self.get_mut(id);
-            transform.dirty
-        };
-        if !dirty {
-            self.get(id).gl_world_matrix
+        let transform = self.get_mut(id);
+        if !transform.dirty {
+            transform.gl_world_matrix
         } else {
             self.update_world_matrix(id);
             self.get(id).gl_world_matrix
