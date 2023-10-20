@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 // HACK: make struct fields public to only TransformMap
 #[derive(Debug, Default)]
-pub struct ObjectTransform {
+struct ObjectTransform {
     position: Vector3,
     orientation: Quaternion,
     dirty: bool,
@@ -186,12 +186,15 @@ impl TransformMap {
 
     pub fn update_world_matrix(&mut self, id: Uuid) {
         let local_matrix = self.local_matrix(id);
-        let parent_matrix = self.world_matrix(id);
-        let transform = self.get_mut(id);
+        let parent_matrix = if self.is_parent(id) {
+            self.world_matrix(id)
+        } else {
+            Matrix::identity()
+        };
 
+        let transform = self.get_mut(id);
         transform.world_matrix = local_matrix * parent_matrix;
         transform.gl_world_matrix = transform.world_matrix.transposed();
-
         transform.dirty = false;
     }
 
@@ -273,7 +276,7 @@ impl TransformMap {
         camera.target = Vector3::new(0.0, 0.0, 1.0).transform_with(world_matrix);
         camera.up = Vector3::new(0.0, 1.0, 0.0).transform_with(world_matrix) - camera.target;
     }
-    
+
     // for tests only, will be removed later
     pub fn children_count(&self, id: Uuid) -> usize {
         self.get(id).children.len()
@@ -289,5 +292,19 @@ impl TransformMap {
 
     pub fn is_parent_of(&self, parent: Uuid, child: Uuid) -> bool {
         self.get(child).parent == parent
+    }
+
+    pub fn push_matrix(&mut self, id: Uuid) {
+        let mut gl_matrix = self.gl_world_matrix(id);
+        unsafe {
+            ffi::rlPushMatrix();
+            ffi::rlMultMatrixf(&mut gl_matrix.m0 as *mut f32);
+        }
+    }
+
+    pub fn pop_matrix(&self) {
+        unsafe {
+            ffi::rlPopMatrix();
+        }
     }
 }
