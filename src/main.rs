@@ -24,7 +24,7 @@ fn main() {
     transform_map.move_vertical(gun_node, -0.5);
 
     let gun_model = rl.load_model(&thread, "assets/blasterD.glb").unwrap();
-    // recursion here
+
     let camera_position = transform_map.world_position(camera_node);
     let camera_target =
         Vector3::new(0.0, 0.0, 1.0).transform_with(transform_map.world_matrix(camera_node));

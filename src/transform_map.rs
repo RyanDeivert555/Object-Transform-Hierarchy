@@ -11,7 +11,8 @@ struct ObjectTransform {
     dirty: bool,
     world_matrix: Matrix,
     gl_world_matrix: Matrix,
-    parent: Uuid,
+    id: Uuid,
+    parent: Option<Uuid>,
     children: HashSet<Uuid>,
 }
 
@@ -33,7 +34,8 @@ impl ObjectTransform {
             dirty,
             world_matrix,
             gl_world_matrix,
-            parent: Uuid::new_v4(),
+            id: Uuid::new_v4(),
+            parent: None,
             children: HashSet::new(),
         }
     }
@@ -52,7 +54,7 @@ impl TransformMap {
 
     pub fn new_transform(&mut self, face_y: bool) -> Uuid {
         let transform = ObjectTransform::new(face_y);
-        let id = transform.parent;
+        let id = transform.id;
         self.transforms.insert(id, transform);
         id
     }
@@ -71,12 +73,12 @@ impl TransformMap {
         }
         {
             let new_parent_transform = self.get_mut(new_parent);
-            new_parent_transform.parent = new_parent;
+            new_parent_transform.parent = Some(new_parent);
             new_parent_transform.children.insert(old_parent);
         }
         {
             let old_parent_transform = self.get_mut(old_parent);
-            old_parent_transform.parent = new_parent;
+            old_parent_transform.parent = Some(new_parent);
             old_parent_transform.children.remove(&new_parent);
         }
     }
@@ -88,14 +90,15 @@ impl TransformMap {
     }
 
     pub fn add_child_from_id(&mut self, parent: Uuid, child: Uuid) {
-        {
-            let parent_transform = self.get_mut(parent);
-            parent_transform.children.insert(child);
-        }
-        {
-            let child_transform = self.get_mut(child);
-            child_transform.parent = parent;
-        }
+        // {
+        //     let parent_transform = self.get_mut(parent);
+        //     parent_transform.children.insert(child);
+        // }
+        // {
+        //     let child_transform = self.get_mut(child);
+        //     child_transform.parent = Some(parent);
+        // }
+        self.reparent(child, parent);
     }
 
     // TODO: detach
@@ -104,9 +107,13 @@ impl TransformMap {
         self.get_mut(id).dirty = true;
         let transform = self.get(id);
         // cheap clone?
-        for child in transform.children.to_owned().iter() {
-            self.set_dirty(*child);
+        for child in transform.children.clone() {
+            self.set_dirty(child);
         }
+    }
+
+    pub fn is_dirty(&self, id: Uuid) -> bool {
+        self.get(id).dirty
     }
 
     pub fn position(&self, id: Uuid) -> Vector3 {
@@ -184,12 +191,12 @@ impl TransformMap {
         orientation_matrix.inverted() * translation_matrix
     }
 
-    // recursion problem
+    // TODO: fix
     pub fn update_world_matrix(&mut self, id: Uuid) {
+        let transform = self.get(id);
         let local_matrix = self.local_matrix(id);
-        let parent_matrix = if !self.is_parent(id) {
-            let parent = self.get(id).parent;
-            self.world_matrix(parent)
+        let parent_matrix = if transform.parent.is_some() {
+            self.world_matrix(transform.parent.unwrap())
         } else {
             Matrix::identity()
         };
@@ -201,9 +208,8 @@ impl TransformMap {
     }
 
     pub fn world_matrix(&mut self, id: Uuid) -> Matrix {
-        let transform = self.get_mut(id);
-        if !transform.dirty {
-            transform.world_matrix
+        if !self.get(id).dirty {
+            self.get(id).world_matrix
         } else {
             self.update_world_matrix(id);
             self.get(id).world_matrix
@@ -211,16 +217,15 @@ impl TransformMap {
     }
 
     pub fn gl_world_matrix(&mut self, id: Uuid) -> Matrix {
-        let transform = self.get_mut(id);
-        if !transform.dirty {
-            transform.gl_world_matrix
+        if !self.get(id).dirty {
+            self.get(id).gl_world_matrix
         } else {
             self.update_world_matrix(id);
             self.get(id).gl_world_matrix
         }
     }
 
-    pub fn to_local_position(&mut self, id: Uuid, in_position: Vector3) -> Vector3 {
+    pub fn local_position(&mut self, id: Uuid, in_position: Vector3) -> Vector3 {
         in_position.transform_with(self.world_matrix(id).inverted())
     }
 
@@ -279,7 +284,7 @@ impl TransformMap {
     }
 
     pub fn is_parent(&self, id: Uuid) -> bool {
-        self.get(id).parent == id
+        self.get(id).parent == Some(id)
     }
 
     pub fn has_child(&self, parent: Uuid, child: Uuid) -> bool {
@@ -287,7 +292,7 @@ impl TransformMap {
     }
 
     pub fn is_parent_of(&self, parent: Uuid, child: Uuid) -> bool {
-        self.get(child).parent == parent
+        self.get(child).parent == Some(parent)
     }
 
     pub fn push_matrix(&mut self, id: Uuid) {
