@@ -47,7 +47,7 @@ pub struct TransformMap {
 }
 
 impl TransformMap {
-    // TODO: implement reparent, detatch
+    // TODO: do not set dirty is the transform does nothing 
     pub fn new() -> Self {
         Self::default()
     }
@@ -73,7 +73,7 @@ impl TransformMap {
         }
         {
             let new_parent_transform = self.get_mut(new_parent);
-            new_parent_transform.parent = Some(new_parent);
+            new_parent_transform.parent = None;
             new_parent_transform.children.insert(old_parent);
         }
         {
@@ -208,7 +208,7 @@ impl TransformMap {
     }
 
     pub fn world_matrix(&mut self, id: Uuid) -> Matrix {
-        if !self.get(id).dirty {
+        if !self.is_dirty(id) {
             self.get(id).world_matrix
         } else {
             self.update_world_matrix(id);
@@ -217,7 +217,7 @@ impl TransformMap {
     }
 
     pub fn gl_world_matrix(&mut self, id: Uuid) -> Matrix {
-        if !self.get(id).dirty {
+        if !self.is_dirty(id) {
             self.get(id).gl_world_matrix
         } else {
             self.update_world_matrix(id);
