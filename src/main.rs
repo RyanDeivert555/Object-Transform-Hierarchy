@@ -21,7 +21,10 @@ fn main() {
     transform_map.add_child_from_id(camera_node, gun_node);
     transform_map.move_horizontal(gun_node, -0.5);
     transform_map.move_vertical(gun_node, -0.5);
-    transform_map.move_vertical(gun_node, -0.5);
+
+    transform_map.debug(player_base);
+    transform_map.debug(camera_node);
+    transform_map.debug(gun_node);
 
     let gun_model = rl.load_model(&thread, "assets/blasterD.glb").unwrap();
 
@@ -41,10 +44,10 @@ fn main() {
 
         let dt = rl.get_frame_time();
         if rl.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON) {
-            transform_map.rotate_vertical(player_base, -0.5);
+            transform_map.rotate_vertical(player_base, -2.5);
         }
         if rl.is_mouse_button_down(MouseButton::MOUSE_RIGHT_BUTTON) {
-            transform_map.rotate_vertical(player_base, 0.5);
+            transform_map.rotate_vertical(player_base, 2.5);
         }
 
         if rl.is_key_down(KeyboardKey::KEY_W) {

@@ -47,7 +47,7 @@ pub struct TransformMap {
 }
 
 impl TransformMap {
-    // TODO: do not set dirty is the transform does nothing 
+    // TODO: do not set dirty is the transform does nothing
     pub fn new() -> Self {
         Self::default()
     }
@@ -67,19 +67,30 @@ impl TransformMap {
         self.transforms.get_mut(&id).unwrap()
     }
 
-    pub fn reparent(&mut self, old_parent: Uuid, new_parent: Uuid) {
-        if old_parent == new_parent {
+    fn children(&self, id: Uuid) -> &HashSet<Uuid> {
+        &self.get(id).children
+    }
+
+    fn parent(&self, id: Uuid) -> Option<Uuid> {
+        self.get(id).parent
+    }
+
+    pub fn reparent(&mut self, old_parent: Uuid, new_parent: Option<Uuid>) {
+        if old_parent == new_parent.unwrap() {
             return;
         }
-        {
-            let new_parent_transform = self.get_mut(new_parent);
-            new_parent_transform.parent = None;
-            new_parent_transform.children.insert(old_parent);
+        if new_parent.is_some() {
+            let new_parent_transform = self.get_mut(new_parent.unwrap());
+            new_parent_transform.children.remove(&old_parent);
         }
-        {
-            let old_parent_transform = self.get_mut(old_parent);
-            old_parent_transform.parent = Some(new_parent);
-            old_parent_transform.children.remove(&new_parent);
+        
+        let old_parent_transform = self.get_mut(old_parent);
+        old_parent_transform.parent = new_parent;
+        
+        if old_parent_transform.parent.is_some() {
+            let parent_id = self.parent(old_parent).unwrap();
+            let parent_transform = self.get_mut(parent_id);
+            parent_transform.children.insert(old_parent);
         }
     }
 
@@ -90,15 +101,7 @@ impl TransformMap {
     }
 
     pub fn add_child_from_id(&mut self, parent: Uuid, child: Uuid) {
-        // {
-        //     let parent_transform = self.get_mut(parent);
-        //     parent_transform.children.insert(child);
-        // }
-        // {
-        //     let child_transform = self.get_mut(child);
-        //     child_transform.parent = Some(parent);
-        // }
-        self.reparent(child, parent);
+        self.reparent(child, Some(parent));
     }
 
     // TODO: detach
@@ -191,7 +194,6 @@ impl TransformMap {
         orientation_matrix.inverted() * translation_matrix
     }
 
-    // TODO: fix
     pub fn update_world_matrix(&mut self, id: Uuid) {
         let transform = self.get(id);
         let local_matrix = self.local_matrix(id);
@@ -272,10 +274,25 @@ impl TransformMap {
     }
 
     pub fn set_camera(&mut self, id: Uuid, camera: &mut Camera3D) {
-        let world_matrix = self.get(id).world_matrix;
         camera.position = Vector3::zero().transform_with(self.world_matrix(id));
+        // new world matrix
+        let world_matrix = self.get(id).world_matrix;
         camera.target = Vector3::new(0.0, 0.0, 1.0).transform_with(world_matrix);
         camera.up = Vector3::new(0.0, 1.0, 0.0).transform_with(world_matrix) - camera.target;
+    }
+
+    pub fn push_matrix(&mut self, id: Uuid) {
+        let mut gl_matrix = self.gl_world_matrix(id);
+        unsafe {
+            ffi::rlPushMatrix();
+            ffi::rlMultMatrixf(&mut gl_matrix.m0 as *mut f32);
+        }
+    }
+
+    pub fn pop_matrix(&self) {
+        unsafe {
+            ffi::rlPopMatrix();
+        }
     }
 
     // for tests only, will be removed later
@@ -295,17 +312,11 @@ impl TransformMap {
         self.get(child).parent == Some(parent)
     }
 
-    pub fn push_matrix(&mut self, id: Uuid) {
-        let mut gl_matrix = self.gl_world_matrix(id);
-        unsafe {
-            ffi::rlPushMatrix();
-            ffi::rlMultMatrixf(&mut gl_matrix.m0 as *mut f32);
-        }
+    pub fn transform_count(&self) -> usize {
+        self.transforms.len()
     }
 
-    pub fn pop_matrix(&self) {
-        unsafe {
-            ffi::rlPopMatrix();
-        }
+    pub fn debug(&self, id: Uuid) {
+        println!("{:#?}", self.get(id));
     }
 }

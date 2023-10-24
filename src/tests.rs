@@ -30,7 +30,7 @@ mod tests {
         assert!(transform_map.is_parent_of(parent, child2));
 
         // child1 is parent now
-        transform_map.reparent(parent, child1);
+        transform_map.reparent(parent, Some(child1));
         assert!(transform_map.is_parent(child1));
         assert!(!transform_map.is_parent(parent));
         assert!(transform_map.has_child(child1, parent));
